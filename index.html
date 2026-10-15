@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Ampoteket · PCB milling · Working build</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to workspace</a>
+<header class="topbar">
+<a class="brand" href="https://ampoteket.no/" aria-label="Ampoteket home"><img src="brand.svg" alt="Ampoteket" width="180" height="34"></a>
+<div class="product-name">PCB milling <span>Roland SRM-20 · single-sided boards</span></div>
+<button id="guidance-toggle" class="guidance-toggle" type="button" role="switch" aria-checked="true"><span class="switch-track" aria-hidden="true"><span></span></span>Show guidance<span id="guidance-status" aria-hidden="true">On</span></button>
+</header>
+<main id="main">
+<div class="preview-notice"><span class="badge">WORKING BUILD</span><p>Local file processing · Gerber2PNG conversion and Mods cutter paths · Roland SRM-20</p></div>
+<nav id="steps" class="steps" aria-label="Milling preparation steps"></nav>
+<div class="workspace">
+<section class="editor" aria-labelledby="stage-title"><div id="screen"></div>
+<footer class="step-footer"><button id="previous" class="button quiet">← Back</button><span id="progress"></span><button id="next" class="button primary">Plan the cuts →</button><p id="next-reason" class="next-reason"></p></footer></section>
+<aside id="support" class="support" aria-label="Board preview and job summary"></aside>
+</div>
+<footer class="page-footer"><span>Ampoteket · Electronics workshop</span><details><summary>About this application</summary><p>Gerber2PNG by FabLab Kerala and pcb-stackup convert the board; Mods generates the toolpaths and RML files. Original source notices and pinned versions are retained locally. No machine is connected. Cutting defaults have not been physically validated for the lab tools.</p></details></footer>
+<p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
+</main>
+<script src="vendor/pcb-stackup.min.js"></script><script src="conversion.bundle.js"></script><script src="cam.js"></script><script src="illustrations.js"></script>
+<script src="app.js"></script>
+<script src="screens.js"></script><script src="import-validation.js"></script><script src="integration.js"></script>
+</body></html>

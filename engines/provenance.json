@@ -1,0 +1,47 @@
+{
+  "sourceProgram": "programs/machines/Roland/SRM-20 mill/mill 2D PCB",
+  "modsRevision": "682559896bbfc2a594d913beb45babe66b903245",
+  "projection": "File output only; raster toolpath directly to the original CBA RML writer; no WebUSB, auto-save or simulation window.",
+  "modules": [
+    {
+      "path": "modules/image/distance transform.js",
+      "sha256": "4de6f56b96209aa9f33ef79e27277746e0fe8115c56348c84c76c032968068c5"
+    },
+    {
+      "path": "modules/image/edge detect.js",
+      "sha256": "dbb4b420696f77e8daa2c372dd45fbf36a5208ea503728d711664a87469fe485"
+    },
+    {
+      "path": "modules/image/orient edges.js",
+      "sha256": "ef7a3e3d859c2fb733de8acad9d7f0cc3a2f1ddcf855e83ba35348f9db49ac0d"
+    },
+    {
+      "path": "modules/image/offset.js",
+      "sha256": "af8ae91543ac4705ae1f10d4b3acc0b615ed8d5bcb621e51ecf9ab348aa9c55a"
+    },
+    {
+      "path": "modules/image/threshold.js",
+      "sha256": "7fabaa54bb42e2d2e2b546c8657bbbc962d421d7be14a5cda7d5c979ff769cc9"
+    },
+    {
+      "path": "modules/processes/mill raster/2D.js",
+      "sha256": "63ffcea8690f54389187f2c0a794625267c2f13784e20d21697247427a5133d1"
+    },
+    {
+      "path": "modules/image/vectorize.js",
+      "sha256": "f3395130492b9f5ca76cfa118387e3af1409dc6ca23577f1730ae9dfc7c6e743"
+    },
+    {
+      "path": "modules/defaults/vbit calculator.js",
+      "sha256": "cc17bc3c0326324c328959385968c28e726b849ccc50249771780a482249bb49"
+    },
+    {
+      "path": "modules/path/machines/precision mill/Roland SRM20 CBA.js",
+      "sha256": "c3b2bb8681fd0c411c114a1cf785a3af6c47087a7d359938eb292ec576f4452b"
+    },
+    {
+      "path": "modules/read/png.js",
+      "sha256": "f5b157d0177c35554b0ebecfa75efb4de8f416c9dab92739ecb57a4dea7fbec4"
+    }
+  ]
+}

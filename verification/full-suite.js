@@ -1,0 +1,126 @@
+/* Regression tests drive the real app DOM. Download capture replaces only file I/O. */
+const suiteStatus=document.getElementById('suite-status'),suiteReport=document.getElementById('suite-report');
+let frame,win,doc,downloads,results;
+function assert(condition,message){if(!condition)throw new Error(message);}
+function near(actual,expected,tolerance=0.08){assert(Math.abs(actual-expected)<=tolerance,`Expected ${expected} ± ${tolerance}, got ${actual}`);}
+async function waitUntil(check,label,timeout=30000){const start=performance.now();while(!check()){if(performance.now()-start>timeout)throw new Error('Timed out: '+label);await new Promise(resolve=>setTimeout(resolve,25));}}
+async function fresh(){
+  frame?.remove();frame=document.createElement('iframe');frame.title='Application under test';frame.style.cssText='width:1100px;height:680px;border:1px solid #666';
+  await new Promise(resolve=>{frame.onload=resolve;frame.src='./?verification='+Date.now();document.getElementById('test-app').replaceChildren(frame);});
+  win=frame.contentWindow;doc=frame.contentDocument;downloads=[];
+  // This is the same Blob that would be handed to the browser's download action.
+  win.downloadBlob=(blob,name)=>downloads.push({blob,name});
+}
+function click(selector){const element=doc.querySelector(selector);assert(element&&!element.disabled,'Unavailable control: '+selector);element.click();}
+function change(selector,value){const element=doc.querySelector(selector);assert(element&&!element.disabled,'Unavailable field: '+selector);element.value=String(value);element.dispatchEvent(new win.Event(element.tagName==='SELECT'?'change':'input',{bubbles:true}));}
+function checked(selector,value){const element=doc.querySelector(selector);assert(element&&!element.disabled,'Unavailable checkbox: '+selector);element.checked=value;element.dispatchEvent(new win.Event('change',{bubbles:true}));}
+function text(){return doc.body.textContent;}
+function issue(){return [...doc.querySelectorAll('[role=alert]')].map(el=>el.textContent).join('\n');}
+async function files(which='lab') {const names=await fetch('samples/'+which+'/files.json').then(r=>r.json());return Promise.all(names.map(async name=>new File([await fetch('samples/'+which+'/'+name).then(r=>r.blob())],name)));}
+async function renamed(file,name,transform=text=>text){return new File([transform(await file.text())],name);}
+async function selectFiles(selected){
+  const input=doc.querySelector('#board-files'),data=new win.DataTransfer();assert(input,'Missing file input');
+  for(const file of selected)data.items.add(file);input.files=data.files;input.dispatchEvent(new win.Event('change',{bubbles:true}));
+  await waitUntil(()=>!doc.querySelector('#board-files')?.disabled,'file import settled');
+}
+async function imported(selected){await fresh();await selectFiles(selected);assert(!issue(),'Import rejected: '+issue());assert(doc.querySelector('#stage-title').textContent==='Check your board files','Board was not imported');}
+async function pngs(){const captured={};for(const op of ['traces','holes','outline']){click('[data-preview="'+op+'"]');const image=doc.querySelector('.calculated-preview image');captured[op]=await fetch(image.getAttribute('href')).then(r=>r.blob());}return captured;}
+async function bitmap(blob){const img=await createImageBitmap(blob),c=document.createElement('canvas');c.width=img.width;c.height=img.height;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);img.close();return {width:c.width,height:c.height,data:ctx.getImageData(0,0,c.width,c.height).data};}
+async function hash(bytes){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(x=>x.toString(16).padStart(2,'0')).join('');}
+async function runJob(){
+  click('[data-step="2"]');click('[data-action="calculate"]');
+  assert(doc.querySelector('[data-step="1"]').disabled,'Navigation stayed active during calculation');
+  await waitUntil(()=>!doc.querySelector('[data-action="calculate"]')?.disabled,'calculation finished',90000);
+  assert(!issue(),'Calculation failed: '+issue());assert(doc.querySelector('[data-action="download-job"]'),'Missing job download');
+  const downloadCount=downloads.length;click('[data-action="download-job"]');await waitUntil(()=>downloads.length>downloadCount,'new ZIP export');
+  const zip=await PCBConversion.JSZip.loadAsync(downloads.findLast(item=>item.name.endsWith('.zip')).blob);
+  return {zip,job:JSON.parse(await zip.file('job-settings.json').async('string'))};
+}
+function rmlMoves(code){return [...code.matchAll(/(?:^|[;\n])Z(-?\d+),(-?\d+),(-?\d+);/g)].map(m=>m.slice(1).map(n=>Number(n)/100));}
+function paths(){return [...doc.querySelectorAll('.calculated-preview g path')].map(p=>[...p.getAttribute('d').matchAll(/[ML](-?[\d.]+),(-?[\d.]+)/g)].map(m=>[Number(m[1]),Number(m[2])]));}
+async function caseTest(name,run){suiteStatus.textContent='Testing: '+name;try{const detail=await run();results.cases.push({name,passed:true,...(detail?{detail}:{})});}catch(error){results.cases.push({name,passed:false,error:error.message});}suiteReport.textContent=JSON.stringify(results,null,2);const list=document.createElement('ol');for(const item of results.cases){const row=document.createElement('li');row.textContent=(item.passed?'PASS · ':'FAIL · ')+item.name+(item.error?' — '+item.error:'');row.style.color=item.passed?'#add4b5':'#ff8a80';list.appendChild(row);}document.getElementById('case-summary').replaceChildren(list);}
+
+document.getElementById('run-suite').onclick=async()=>{
+ document.getElementById('run-suite').disabled=true;results={started:new Date().toISOString(),cases:[]};
+ const savedGuidance=localStorage.getItem('ampoteket-pcb-v2-guidance');
+ try{
+ const lab=await files(),small=await files('small');
+ const copper=lab.find(f=>f.name.includes('B_Cu')),edge=lab.find(f=>f.name.includes('Edge_Cuts')),pth=lab.find(f=>f.name.includes('-PTH')),empty=lab.find(f=>f.name.includes('-NPTH'));
+ const topCopper=new File([await fetch('verification/fixtures/front/front-test-F_Cu.gbr').then(r=>r.blob())],'front-test-F_Cu.gbr');
+ const topEdge=new File([await fetch('verification/fixtures/front/front-test-Edge_Cuts.gbr').then(r=>r.blob())],'front-test-Edge_Cuts.gbr');
+ await caseTest('Initial state cannot advance without a board',async()=>{await fresh();assert(doc.querySelector('#next').disabled,'Next enabled before import');assert(doc.querySelector('[data-step="2"]').disabled,'Review accessible without board');});
+ await caseTest('Individual KiCad imports identify side, dimensions and six holes',async()=>{await imported(lab);assert(text().includes('B.Cu')&&text().includes('36 × 20 mm'),'Incorrect side/dimensions');assert(text().includes('6 openings')&&text().includes('3 mm'),'Incorrect hole summary');});
+ let individualPng;
+ await caseTest('ZIP and individual files produce identical artwork',async()=>{individualPng=await pngs();const zip=new PCBConversion.JSZip();for(const f of lab)zip.file('exports/'+f.name,await f.arrayBuffer());zip.file('image.jpg','ignored');await imported([new File([await zip.generateAsync({type:'blob'})],'board.zip')]);const zipped=await pngs();for(const op of ['traces','holes','outline']){const a=await bitmap(individualPng[op]),b=await bitmap(zipped[op]);assert(a.width===b.width&&a.height===b.height&&await hash(a.data)===await hash(b.data),op+' changed when loaded from ZIP');}});
+ await caseTest('Missing copper is rejected',async()=>{await fresh();await selectFiles([edge,pth]);assert(issue().includes('exactly one copper'),'Missing copper not explained');assert(doc.querySelector('#next').disabled,'Invalid import can advance');});
+ await caseTest('Missing board edge is rejected',async()=>{await fresh();await selectFiles([copper,pth]);assert(issue().includes('Edge.Cuts'),'Missing outline not explained');});
+ await caseTest('Two copper layers are rejected',async()=>{await fresh();await selectFiles([...lab,topCopper]);assert(issue().includes('exactly one copper'),'Two sides accepted as a single-sided job');});
+ await caseTest('Duplicate filenames in ZIP folders are rejected',async()=>{const z=new PCBConversion.JSZip();z.file('one/'+copper.name,await copper.arrayBuffer());z.file('two/'+copper.name,await copper.arrayBuffer());await fresh();await selectFiles([new File([await z.generateAsync({type:'blob'})],'duplicates.zip')]);assert(issue().includes('Duplicate filenames'),'Duplicate basenames accepted');});
+ await caseTest('Corrupt ZIP produces an error and keeps navigation locked',async()=>{await fresh();await selectFiles([new File(['broken archive'],'bad.zip')]);assert(issue().length>0&&doc.querySelector('#next').disabled,'Corrupt ZIP accepted');});
+ await caseTest('Empty ZIP produces an explanatory error',async()=>{await fresh();await selectFiles([new File([await new PCBConversion.JSZip().generateAsync({type:'blob'})],'empty.zip')]);assert(issue().includes('No Gerber'),'Empty ZIP not rejected');});
+ await caseTest('Malformed copper file cannot generate output',async()=>{await fresh();await selectFiles([new File(['invalid contents'],'bad-B_Cu.gbr'),edge,pth]);assert(issue().length>0&&doc.querySelector('#next').disabled,'Malformed copper was accepted');});
+ await caseTest('No-drill board imports without enabling hole cutting',async()=>{await imported([copper,edge]);assert(!doc.querySelector('#include-holes').checked&&doc.querySelector('#include-holes').disabled,'Holes enabled without drill data');});
+ await caseTest('Empty Excellon files are accepted as a board without holes',async()=>{await imported([copper,edge,empty]);assert(!doc.querySelector('#include-holes').checked&&doc.querySelector('#include-holes').disabled,'Empty drill file enabled holes');});
+ await caseTest('Unused drill tools do not restrict the actual holes',async()=>{const f=await renamed(pth,pth.name,t=>t.replace('T1C3.000','T1C3.000\nT2C0.300'));await imported([copper,edge,f]);assert(text().includes('smallest specified drill 3 mm'),'Unused tool mistaken for a real small hole');});
+ await caseTest('Modal Excellon coordinates count every round hole',async()=>{const f=await renamed(pth,pth.name,t=>t.replace('X50.0Y-65.0','Y-65.0'));await imported([copper,edge,f]);assert(text().includes('6 openings'),'Y-only hole was lost in summary');});
+ await caseTest('Unsupported slotted holes are rejected explicitly',async()=>{const f=await renamed(pth,pth.name,t=>t.replace('X50.0Y-55.0','X50.0Y-55.0G85X52.0Y-55.0'));await fresh();await selectFiles([copper,edge,f]);assert(/slot|round holes/i.test(issue()),'Slot silently treated as a supported round-hole job');});
+ await caseTest('Inch Excellon tools and coordinates retain millimetre scale',async()=>{let t=(await pth.text()).replace(/METRIC/g,'INCH').replace(/T1C3\.000/,'T1C'+(3/25.4).toFixed(9)).replace(/([XY])(-?\d+\.\d+)/g,(_,axis,n)=>axis+(Number(n)/25.4).toFixed(9));await imported([copper,edge,new File([t],pth.name)]);assert(text().includes('6 openings')&&text().includes('drill 3 mm'),'Inch conversion scale incorrect');});
+ await caseTest('Oversized board is rejected before machining',async()=>{const big=await renamed(edge,edge.name,t=>t.replaceAll('81000000','300000000'));await fresh();await selectFiles([copper,big,pth]);assert(issue().includes('working area'),'Oversized artwork accepted');});
+ await caseTest('X2 layer metadata takes precedence over a misleading filename',async()=>{await imported([topCopper,topEdge,pth]);const expected=await pngs();await imported([await renamed(topCopper,'wrong-B_Cu.gbr'),topEdge,pth]);assert(doc.querySelector('.panel-heading p:last-child').textContent.startsWith('F.Cu'),'Filename overrode F.Cu metadata and mirrored the job');const actual=await pngs();for(const op of ['traces','holes','outline'])assert(await hash((await bitmap(actual[op])).data)===await hash((await bitmap(expected[op])).data),'Misleading filename changed '+op+' artwork');});
+ await caseTest('Inner copper layer is rejected as unsupported',async()=>{await fresh();await selectFiles([await renamed(copper,'inner.gbr',t=>t.replace('Copper,L2,Bot','Copper,L2,Inr')),edge,pth]);assert(/outer|F.Cu|B.Cu/.test(issue()),'Inner copper was accepted as an outside surface');});
+ await caseTest('Lab stock and full cutter identities are populated',async()=>{await imported(lab);click('[data-step="1"]');click('#edit-stock');assert(doc.querySelector('#field-boardThickness').value==='1.64','Lab board thickness not populated');assert(doc.querySelector('#trace-source').textContent.includes('RS-ISO-090-3-30')&&doc.querySelector('#hole-source').textContent.includes('LK-SV-0200-3-090-38'),'Cutter identifiers incomplete');});
+ await caseTest('Invalid depth, speed, pass count and travel settings block output',async()=>{
+   click('#edit-stock');click('#edit-traces');click('#edit-holes');click('#edit-travel');
+   for(const [field,bad,good] of [['tracesDepth','0.01','0.05'],['tracesFeed','0','2'],['offsets','1.5','4'],['stepover','101','50'],['holesDepth','1','1.65'],['holesPassDepth','0','0.25'],['jog','0','5']]){
+     change('#field-'+field,bad);assert(doc.querySelector('#next').disabled,field+' invalid value accepted');change('#field-'+field,good);assert(!doc.querySelector('#next').disabled,field+' did not recover');
+   }
+ });
+ let baseJob;
+ await caseTest('Full job exports three operations with correct RML depths, speeds and origins',async()=>{
+   baseJob=await runJob();assert(Object.keys(baseJob.zip.files).sort().join('|')==='01-copper.rml|02-holes.rml|03-outline.rml|job-settings.json','Unexpected ZIP entries');
+   for(const [op,name,depth,feed] of [['traces','01-copper.rml',0.05,2],['holes','02-holes.rml',1.65,0.5],['outline','03-outline.rml',1.65,0.5]]){
+     const code=await baseJob.zip.file(name).async('string'),moves=rmlMoves(code);assert(code.startsWith('PA;PA;VS'+feed+';!VZ'+feed+';!PZ0,500;!MC1;'),'Wrong feed/travel commands');near(Math.min(...moves.map(p=>p[2])),-depth,0.01);assert(code.endsWith('PA;PA;!PZ0,500;PU0,0;!MC0;'),'Wrong shutdown/return commands');assert(baseJob.job.applied[op].writerOrigin.every(n=>n===0),'Unexpected origin offsets');
+   }
+   assert(baseJob.job.sourceFiles.length===4,'Missing source hashes');for(const f of lab)assert(baseJob.job.sourceFiles.find(s=>s.name===f.name).sha256===await hash(await f.arrayBuffer()),'Wrong source hash');
+ });
+ await caseTest('Image padding preserves board pixels and aligns all operations',async()=>{
+   const images=await pngs();for(const op of ['traces','holes','outline']){const original=await bitmap(individualPng[op]),current=await bitmap(images[op]);assert(current.width===1519&&current.height===889,'Unexpected common canvas');const inner=new Uint8Array(original.data.length);for(let y=0;y<original.height;y++)inner.set(current.data.subarray(((y+19)*current.width+19)*4,((y+19)*current.width+19+original.width)*4),y*original.width*4);assert(await hash(inner)===await hash(original.data),op+' scaled or shifted within its border');}assert(baseJob.job.raster.extraBorderPixels===19,'Wrong saved margin');
+ });
+ await caseTest('Bottom-side hole centres match independently known KiCad coordinates',async()=>{
+   click('[data-preview="holes"]');const contours=paths(),svg=doc.querySelector('.calculated-preview'),width=Number(svg.getAttribute('viewBox').split(' ')[2]);assert(contours.length===6,'Expected six hole contours');
+   const centres=contours.map(path=>{const xs=path.map(p=>p[0]),ys=path.map(p=>p[1]);return [(Math.min(...xs)+Math.max(...xs))/2*25.4/1000*width/(width-1),(Math.min(...ys)+Math.max(...ys))/2*25.4/1000*width/(width-1)];});
+   const margin=baseJob.job.raster.totalMarginMm;for(const [x,y] of [[50,55],[50,65],[58,55],[68.16,55],[70,64],[76,64]])assert(centres.some(([cx,cy])=>Math.abs(cx-(81-x+margin))<0.08&&Math.abs(cy-(70-y+margin))<0.08),'Hole mirrored or misaligned at '+x+','+y);
+   return {holeCentresMm:centres};
+ });
+ await caseTest('Outline clears the board by the cutter radius and is a complete contour',async()=>{click('[data-preview="outline"]');assert(paths().length===1,'Outline fragmented');const moves=rmlMoves(await baseJob.zip.file('03-outline.rml').async('string')),m=baseJob.job.raster.totalMarginMm;near(Math.min(...moves.map(p=>p[0])),m-1);near(Math.max(...moves.map(p=>p[0])),m+36+1);near(Math.min(...moves.map(p=>p[1])),m-1);near(Math.max(...moves.map(p=>p[1])),m+20+1);});
+ await caseTest('Changed speed invalidates files and reaches the newly calculated RML',async()=>{click('[data-edit="traces"]');change('#field-tracesFeed','1.5');click('[data-step="2"]');assert(!doc.querySelector('[data-action="download-job"]'),'Outdated ZIP still downloadable');const {zip}=await runJob();assert((await zip.file('01-copper.rml').async('string')).includes('VS1.5;!VZ1.5;'),'New speed not in RML');});
+ await caseTest('Red hole cutter stays allowed with a warning and actual calculated width',async()=>{click('[data-edit="holes"]');change('#hole-source','lab-isolation');change('#outline-source','lab');assert(/Pointed cutter selected/.test(text())&&!doc.querySelector('#next').disabled,'Red hole selection blocked or warning missing');const {job}=await runJob();near(job.applied.holes.diameter,0.55,1e-8);});
+ await caseTest('Removing holes and outline exports only the copper file',async()=>{click('[data-step="0"]');checked('#include-holes',false);checked('#include-outline',false);const {zip}=await runJob();assert(Object.keys(zip.files).sort().join('|')==='01-copper.rml|job-settings.json','Unselected operations exported');});
+ await caseTest('Small-hole board rejects 2 mm and accepts a suitable custom cutter',async()=>{await imported(small);click('[data-step="1"]');assert(doc.querySelector('#next').disabled,'2 mm cutter allowed in 0.8 mm holes');change('#hole-source','custom');change('#field-holeDiameter','0.6');change('#outline-source','lab');assert(!doc.querySelector('#next').disabled,'Suitable hole cutter rejected');const {job}=await runJob();near(job.applied.holes.diameter,0.6,1e-8);});
+ await caseTest('Flat copper cutter geometry is used in the output',async()=>{await imported(lab);click('[data-step="1"]');change('#trace-source','custom');click('#tool-flat');change('#field-flatDiameter','0.4');const {job}=await runJob();near(job.applied.traces.diameter,0.4,1e-8);});
+ await caseTest('Front copper exports and holes have correct independent orientation',async()=>{
+   await imported([topCopper,topEdge,pth]);assert(text().includes('F.Cu'),'Wrong detected side');const {job}=await runJob();assert(job.side==='top','Manifest side incorrect');click('[data-preview="holes"]');const width=Number(doc.querySelector('.calculated-preview').getAttribute('viewBox').split(' ')[2]),m=job.raster.totalMarginMm;
+   const centres=paths().map(path=>[(Math.min(...path.map(p=>p[0]))+Math.max(...path.map(p=>p[0])))/2*25.4/1000*width/(width-1),(Math.min(...path.map(p=>p[1]))+Math.max(...path.map(p=>p[1])))/2*25.4/1000*width/(width-1)]);
+   for(const [x,y] of [[50,55],[50,65],[58,55],[68.16,55],[70,64],[76,64]])assert(centres.some(([cx,cy])=>Math.abs(cx-(x-45+m))<0.08&&Math.abs(cy-(70-y+m))<0.08),'Front hole mirrored or misaligned at '+x+','+y);
+ });
+ await caseTest('Guidance preference persists without changing cutting data',async()=>{const before=doc.querySelector('#guidance-toggle').getAttribute('aria-checked');click('#guidance-toggle');const expected=before==='true'?'false':'true';await fresh();assert(doc.querySelector('#guidance-toggle').getAttribute('aria-checked')===expected,'Guidance preference did not persist');});
+ await caseTest('No-drill board calculates copper and outline only',async()=>{await imported([copper,edge,empty]);const {zip}=await runJob();assert(Object.keys(zip.files).sort().join('|')==='01-copper.rml|03-outline.rml|job-settings.json','Wrong operations for empty drill exports');});
+ await caseTest('Edited depths, depth increments and travel height reach the RML',async()=>{
+   await imported(lab);click('[data-step="1"]');click('#edit-traces');click('#edit-holes');click('#edit-outline');click('#edit-travel');
+   change('#field-tracesDepth','0.08');change('#field-holesDepth','1.8');change('#field-holesPassDepth','0.3');change('#field-outlineDepth','1.75');change('#field-outlinePassDepth','0.4');change('#field-jog','3');
+   const {zip,job}=await runJob();near(job.applied.traces.diameter,0.21,1e-8);near(job.applied.holes.cutDepth,0.3,1e-8);near(job.applied.outline.cutDepth,0.4,1e-8);
+   for(const [name,depth] of [['01-copper.rml',0.08],['02-holes.rml',1.8],['03-outline.rml',1.75]]){const code=await zip.file(name).async('string');assert(code.includes('!PZ0,300;'),'Travel height not written');near(Math.min(...rmlMoves(code).map(p=>p[2])),-depth,0.01);}
+ });
+ await caseTest('A custom V-bit angle and tip reach the original calculator',async()=>{await imported(lab);click('[data-step="1"]');change('#trace-source','custom');click('#tool-vbit');change('#field-tipDiameter','0.1');change('#field-angle','60');const {job}=await runJob();near(job.applied.traces.diameter,0.1+0.1*Math.tan(Math.PI/6),1e-8);});
+ await caseTest('Undefined Excellon tools are rejected',async()=>{await fresh();await selectFiles([copper,edge,await renamed(pth,pth.name,t=>t.replace(/(\r?\n)T1(\r?\n)/,'$1T9$2'))]);assert(issue().includes('undefined drill tool'),'Undefined drill tool accepted');});
+ await caseTest('A failed replacement import retains the named previous board and removes outputs',async()=>{await imported(lab);await runJob();click('[data-step="0"]');await selectFiles([copper,pth]);assert(issue().includes('Edge.Cuts'),'Failed replacement not explained');assert(doc.querySelector('#stage-title').textContent==='Check your board files','Previous board lost');click('[data-step="2"]');assert(!doc.querySelector('[data-action="download-job"]'),'Previous output survived a replacement attempt');});
+ await caseTest('File names are displayed as text rather than inserted as markup',async()=>{const z=new PCBConversion.JSZip();for(const f of lab)z.file(f.name,await f.arrayBuffer());await imported([new File([await z.generateAsync({type:'blob'})],'<b>board</b>.zip')]);click('[data-step="2"]');assert(!doc.querySelector('.review-job h2 b')&&doc.querySelector('.review-job h2').textContent==='<b>board</b>.zip','Filename inserted into HTML');});
+ await caseTest('Malformed Excellon files cannot silently remove the holes',async()=>{await fresh();await selectFiles([copper,edge,new File(['not an Excellon file'],'bad.drl')]);assert(issue().includes('Excellon'),'Malformed drill file treated as an empty valid file');});
+ await caseTest('Malformed Excellon coordinates are rejected',async()=>{await fresh();await selectFiles([copper,edge,await renamed(pth,pth.name,t=>t.replace('X50.0Y-55.0','X50.0Ybroken'))]);assert(issue().includes('invalid drill coordinates'),'Malformed hole coordinates silently accepted');});
+ }catch(error){results.fatal=error.message;}
+ finally{
+   if(savedGuidance===null)localStorage.removeItem('ampoteket-pcb-v2-guidance');else localStorage.setItem('ampoteket-pcb-v2-guidance',savedGuidance);
+   results.finished=new Date().toISOString();results.passed=results.cases.filter(c=>c.passed).length;results.failed=results.cases.filter(c=>!c.passed).length;results.allPassed=!results.failed&&!results.fatal;
+   suiteReport.textContent=JSON.stringify(results,null,2);suiteStatus.textContent=`${results.passed} passed, ${results.failed} failed${results.fatal?' (fatal: '+results.fatal+')':''}.`;document.getElementById('run-suite').disabled=false;
+ }
+};
