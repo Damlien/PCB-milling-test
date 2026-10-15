@@ -39,7 +39,7 @@ function fieldError(key) {
   if (key==='angle' && value>=180) return 'Enter an included angle smaller than 180°.';
   if (key==='offsets' && !Number.isInteger(value)) return 'Enter a whole number of clearing passes.';
   if (key==='stepover' && value>100) return 'Pass spacing must be 100% or less.';
-  if (key==='holeDiameter' && state.holes && value>=example().minHole) return value+' mm is too large for this board’s '+example().minHole+' mm holes. Choose a smaller cutter, or use the 3 mm-hole example.';
+  if (key==='holeDiameter' && state.loaded && state.holes && value>=example().minHole) return value+' mm is too large for this board’s '+example().minHole+' mm holes. Choose a smaller cutter, or use the 3 mm-hole example.';
   if (['holesDepth','outlineDepth'].includes(key) && Number(state.boardThickness)>value) return 'This cut stops above the bottom of the '+state.boardThickness+' mm board. Increase the total depth.';
   if (key==='tracesDepth' && Number(state.boardThickness)>0 && value>=Number(state.boardThickness)) return 'This reaches through the board. Enter a shallow copper cut depth.';
   if (key==='tracesDepth' && Number(state.copperThickness)>0 && value<Number(state.copperThickness)/1000) return 'This stops inside the copper coating. Increase the depth to reach through it.';
@@ -105,22 +105,21 @@ function updateValidation() {
   for (const el of document.querySelectorAll('[data-value]')) el.textContent=state[el.dataset.value]||'—';
   const problems=issues();
   if ($('plan-issues')) { $('plan-issues').innerHTML=issueList(problems); $('plan-issues').hidden=!problems.length; }
-  $('next').disabled=!state.loaded || (state.step===1 && problems.length>0);
-  $('next-reason').textContent=!state.loaded?'Add your board files or load an example to continue.':state.step===1&&problems.length?'Complete the highlighted settings to continue.':'';
+  $('next').disabled=state.step===1 && problems.length>0;
+  $('next-reason').textContent=state.step===1&&problems.length?'Complete the highlighted settings to continue.':'';
   for (const button of document.querySelectorAll('[data-reset]')) button.disabled=groupKeys(button.dataset.reset).every(key=>state[key]===defaults[key]);
   if ($('save-settings')) $('save-settings').disabled=problems.length>0;
   document.querySelectorAll('[data-action=download-job]').forEach(button=>button.disabled=!cam.results||cam.calculatedRevision!==cam.revision);
 }
 function render(focusId='') {
   $('guidance-toggle').setAttribute('aria-checked',String(showGuidance)); $('guidance-status').textContent=showGuidance?'On':'Off';
-  $('steps').innerHTML=steps.map((title,i)=>'<button class="step" data-step="'+i+'" '+(i===state.step?'aria-current="step" ':'')+(!state.loaded&&i>0?'disabled ':'')+'><span class="step-number">0'+(i+1)+'</span><span>'+title+'</span></button>').join('');
+  $('steps').innerHTML=steps.map((title,i)=>'<button class="step" data-step="'+i+'" '+(i===state.step?'aria-current="step" ':'')+'><span class="step-number">0'+(i+1)+'</span><span>'+title+'</span></button>').join('');
   $('screen').innerHTML=[filesScreen,planScreen,reviewScreen][state.step]();
   $('previous').hidden=state.step===0; $('next').hidden=state.step===2;
   $('next').textContent=state.step===0?'Plan the cuts →':'Review & mill →'; $('progress').textContent=(state.step+1)+' of 3';
   renderSupport(); updateValidation(); if(focusId) $(focusId)?.focus();
 }
 function navigate(step,group='',key='') {
-  if (!state.loaded && step>0) return;
   state.step=step;
   if(group) editors[group]=true;
   if(key) touched.add(key);
