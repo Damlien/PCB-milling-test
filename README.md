@@ -1,38 +1,42 @@
-# Ampoteket PCB milling — personal GitHub Pages trial
+# Ampoteket PCB milling
 
-Browser-based preparation of Roland SRM-20 RML files from single-sided KiCad exports. The app uses the original Gerber2PNG conversion functions and original Mods calculation modules behind a simpler interface.
+**Turn KiCad board exports into milling files for the Roland SRM-20.**
 
-## Publish on your personal GitHub
+[Open the application](https://damlien.github.io/PCB-milling-test/) · [Documentation](docs/README.md) · [Taking over the website](docs/HANDOVER.md)
 
-1. Create a **public** repository, for example `pcb-milling-test`. Initialise it with a README so the `main` branch exists.
-2. Extract the GitHub Pages ZIP. In the repository select **Add file → Upload files**. Upload the **contents** of the extracted folder, keeping its subfolders. `index.html` must be at the repository root. Commit the files to `main`.
-3. Open **Settings → Pages**. Under Source choose **Deploy from a branch**, then **main** and **/(root)**. Save.
-4. Wait for the Pages deployment to finish. The Pages settings display the live URL. It normally looks like `https://YOUR-USERNAME.github.io/pcb-milling-test/`.
+Ampoteket PCB milling brings Gerber2PNG conversion and Mods toolpath calculation into one guided browser interface. It helps students prepare a single-sided PCB without moving files between separate websites or navigating the Mods node workspace.
 
-Upload the extracted files, rather than the ZIP itself. No Python, build command, API key or server configuration is needed on GitHub. This folder contains only website files, example boards, licences and browser tests. The original local project and older prototypes remain separate.
+## From board design to machine files
 
-GitHub instructions: [publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site), [uploading files](https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository).
+1. **Board files:** add the copper Gerber, matching Edge.Cuts Gerber and any Excellon drill files from KiCad. A ZIP or individual files can be used. Two simple battery–resistor–LED examples are included.
+2. **Plan the cuts:** choose board stock and cutters, then review or adjust the depth, cutting speed, repeated passes and travel height. Explanations can be expanded or hidden with **Show guidance**.
+3. **Review & mill:** calculate the cutter paths, inspect the previews and download the machine files together with their settings record. The run sheet explains file order and tool changes.
 
-## Check the live trial
+All three pages can be explored before adding files. Calculation becomes available after importing a board and completing valid settings.
 
-Load the lab example, calculate its paths and download its RML ZIP. Check each preview. Then open `verification/` below the website's address and run the engine comparison. Open `verification/full-suite.html` to run the application regression suite. These tests do not connect to a milling machine. The hosted site needs to be tested after publishing; local test results alone do not establish hosted behaviour.
+## What it produces
 
-The application processes imported board files in browser memory. It has no upload endpoint or user-file storage. The hosting provider serves the application and may keep ordinary website access logs. Refreshing the app clears the current job.
+The downloaded ZIP contains the selected operations:
 
-## Change the trial
-
-| Change | File |
+| File | Purpose |
 | --- | --- |
-| Appearance | styles.css |
-| Screen content | screens.js and integration.js |
-| Defaults and cutter choices | app.js and screens.js |
-| Input validation and hole summaries | import-validation.js |
-| File import and preview | integration.js |
-| Calculation orchestration and ZIP output | cam.js |
-| Original Mods control adapter | engines/mods-host.js |
+| `01-copper.rml` | Separate copper tracks and pads. |
+| `02-holes.rml` | Mill component and connection holes, when selected. |
+| `03-outline.rml` | Cut the board free, when selected. |
+| `job-settings.json` | Record the source-file hashes, settings and engine versions used. |
 
-Saving changes to `main` republishes the site. The conversion bundle and engine graph are prebuilt. Rebuilding those from source uses the complete development workspace, retained separately, and its `working/scripts/build.py`. This deployment folder is a ready-to-run trial, not a complete engine build environment. Preserve THIRD_PARTY.md and the licence files.
+RML files are sent to the machine using Roland VPanel. The application prepares files; it does not connect to or control the mill. The settings record is currently an export for reference, not a job file that the application can reopen.
 
-## Scope
+## Processing and current scope
 
-This is an early working build for one outer copper layer, a matching outline and round Excellon holes. Slots and inner layers are rejected. Example cutting values have not been physically validated on the lab equipment. The red isolation bit remains selectable for holes with a taper warning. Software comparisons do not establish physical milling accuracy or electrical isolation of every board.
+Files are processed in browser memory. There is no board-upload service, account requirement or server-side job storage. Refreshing the page clears the current job. Downloadable PNGs are the machining images; the coloured cutter paths belong to the on-screen preview.
+
+The current build supports one outer copper layer, F.Cu or B.Cu, a matching board boundary and round Excellon holes. Routed slots and inner copper layers are rejected. Hole preparation uses contour milling rather than a dedicated plunge-drilling process.
+
+Lab stock and cutter choices are provided, with editable cutting values. Those values are examples; they have not yet been established as physically tested lab profiles. Software tests check conversion and output behaviour, but do not establish physical cutting quality or electrical isolation for every board.
+
+## Built on existing tools
+
+The application retains the original **[Gerber2PNG](https://github.com/fablabkerala/gerber2png)** conversion functions and **[Mods](https://gitlab.fabcloud.org/pub/project/mods)** calculation modules. The surrounding interface handles settings, previews and downloads. Fixed versions, attribution and dependency notices are recorded in [THIRD_PARTY.md](THIRD_PARTY.md).
+
+For maintaining the site, start with [Taking over the website](docs/HANDOVER.md). The [documentation plan](docs/DOCUMENTATION_PLAN.md) sets out the website guide, printable PDF, backup workflow and machine-side quick reference being prepared. Updated operating guides are not yet published.
