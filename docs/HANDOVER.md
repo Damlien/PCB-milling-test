@@ -24,7 +24,7 @@ The current site uses GitHub Pages. It serves the files in this repository. Ther
 
 This is a software check; it does not run the machine.
 
-1. Open the website in a fresh tab. Open **Plan the cuts** and **Review & mill** without importing anything. Both should open; calculation should be unavailable without board files.
+1. Open the website in a fresh tab.
 2. Return to **Board files** and select **Load lab cutter example**. This is a small battery–resistor–LED board with six 3 mm holes.
 3. Open **Plan the cuts**. The lab stock should show 1.64 mm total thickness. The red isolation tool and purple 2 mm cutter should be named by their full model numbers.
 4. Open **Review & mill** and calculate. Inspect the copper, hole and outline previews. Download the RML ZIP. With all three operations selected, it should contain the three RML files and `job-settings.json` described in the [overview](../README.md).
@@ -57,7 +57,7 @@ Official references: [editing files](https://docs.github.com/en/repositories/wor
 | Gerber/drill rejection or file identification | `import-validation.js`, `integration.js` | Run application tests and add a case for the input being changed. |
 | Machine-file output or calculation behaviour | `cam.js`, `engines/mods-host.js` and bundled engines | Follow the engine boundary below; output comparisons are required. |
 
-The current lab values are spread across several code files. There is not yet one simple “lab settings” file. Do not assume that changing a displayed tool name also changes the dimensions used for calculation. Moving routine lab data into one readable file is a proposed improvement in the [documentation plan](DOCUMENTATION_PLAN.md), not a feature that already exists.
+The current lab values are spread across several code files. There is not yet one simple “lab settings” file. Do not assume that changing a displayed tool name also changes the dimensions used for calculation.
 
 For application changes, keep the change small and preview it before publishing. A downloaded copy can be served locally: choose **Code → Download ZIP**, extract it, open a terminal in the extracted folder containing `index.html`, and, on a Windows PC with Python 3 installed, run:
 
@@ -107,4 +107,4 @@ Changing wording or appearance does not require rebuilding these engines. Replac
 
 ## 8. End-of-term handover
 
-Leave the next student with working repository access, this document, a known working application revision, the updated operating guides and the build-source gap resolved. Record the machine PC's VPanel/driver setup and any measured milling profiles in the relevant machine guide or lab records. Keep observed cutting results distinct from software example defaults. The [documentation plan](DOCUMENTATION_PLAN.md) lists the remaining work and how to keep it small.
+Leave the next student with working repository access, this document, a known working application revision, the updated operating guides and the build-source gap resolved. Record the machine PC's VPanel/driver setup and any measured milling profiles in the relevant machine guide or lab records. Keep observed cutting results distinct from software example defaults.
