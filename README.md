@@ -10,7 +10,7 @@ Ampoteket PCB milling brings Gerber2PNG conversion and Mods toolpath calculation
 
 1. **Board files:** add the copper Gerber, matching Edge.Cuts Gerber and any Excellon drill files from KiCad, individually or as a ZIP.
 2. **Plan the cuts:** choose board stock and cutters, then review or adjust the depth, cutting speed, repeated passes and travel height. Illustrated explanations help connect the settings to the cuts they produce.
-3. **Review & mill:** calculate the cutter paths, inspect the previews and download the machine files together with their settings record. The run sheet explains file order and tool changes.
+3. **Review & mill:** calculate the cutter paths, inspect the previews and download the machine files or send the job directly to another computer. The run sheet explains file order and tool changes.
 
 ## What it produces
 
@@ -25,9 +25,13 @@ The downloaded ZIP contains the selected operations:
 
 RML files are sent to the machine using Roland VPanel. The application prepares files; it does not connect to or control the mill. Two battery–resistor–LED example boards are included for trying the workflow.
 
+To transfer a job, open the [receiving page](https://damlien.github.io/PCB-milling-test/receive.html) on the VPanel computer. Enter its code under **Send to machine** on your laptop, then accept and save the job on the receiving computer.
+
 ## Processing and current scope
 
 Board files are processed locally in the browser, without uploading them to a processing server.
+
+Optional direct transfer uses PeerJS Cloud to connect the two browsers. Both pages must stay open during delivery; there is no server-side job storage. Restricted networks may prevent a direct connection.
 
 The current build supports one outer copper layer, F.Cu or B.Cu, a matching board boundary and round Excellon holes. Routed slots and inner copper layers are rejected. Hole preparation uses contour milling rather than a dedicated plunge-drilling process.
 

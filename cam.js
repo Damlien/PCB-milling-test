@@ -64,10 +64,17 @@ async function calculateJob() {
 function downloadBlob(blob,name) {
   const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),3000);
 }
-async function downloadJob() {
-  if(!cam.results||cam.calculatedRevision!==cam.revision)return;
+async function createJobZip() {
+  if(!cam.results||cam.calculatedRevision!==cam.revision)throw new Error('Calculate the current job before downloading or sending it.');
+  const revision=cam.revision;
   const zip=new PCBConversion.JSZip();
   for(const [op,result] of Object.entries(cam.results))zip.file(({traces:'01-copper.rml',holes:'02-holes.rml',outline:'03-outline.rml'}[op]),result.file.contents);
   zip.file('job-settings.json',JSON.stringify({settings:state,sourceFiles:cam.board.files,conversionAliases:cam.board.conversionAliases,side:cam.board.side,dimensions:cam.board.dimensions,raster:{dpi:1000,basePaddingMm:0.82,extraBorderPixels:cam.jobImages.extraPixels,totalMarginMm:cam.jobImages.marginMm},origins:{x:0,y:0,z:0,homeX:0,homeY:0,homeZ:Number(state.jog)},engineVersions:{gerber2png:'80edc4061e4b2133e3d42f581d20445678fb50e6',mods:'682559896bbfc2a594d913beb45babe66b903245'},applied:Object.fromEntries(Object.entries(cam.results).map(([op,result])=>[op,result.applied]))},null,2));
-  downloadBlob(await zip.generateAsync({type:'blob'}),'ampoteket-pcb-job.zip');
+  const blob=await zip.generateAsync({type:'blob'});
+  if(cam.revision!==revision||cam.calculatedRevision!==revision)throw new Error('The job changed. Calculate it again before downloading or sending.');
+  return blob;
+}
+async function downloadJob() {
+  try {downloadBlob(await createJobZip(),'ampoteket-pcb-job.zip');}
+  catch(error) {cam.error=error.message;render();}
 }

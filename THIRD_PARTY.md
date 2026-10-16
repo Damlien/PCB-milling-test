@@ -8,5 +8,6 @@ This application acknowledges the **Mods project**. Original copyright and permi
 - **changedpi 1.0.4**: MIT; licence in licenses/changedpi-LICENSE.md.
 - **JSZip 3.10.1**: dual MIT/GPL-3.0-or-later; retained notice in licenses/jszip-LICENSE.markdown. Bundled in conversion.bundle.js.
 - **D3**: retained source notice in engines/js/d3.js/d3.min.js.
+- **PeerJS 1.5.5**: MIT; licence in licenses/peerjs-LICENSE. vendor/peerjs-source.json records the pinned npm archive, SHA-512 integrity and browser-file checksum. Direct transfer uses PeerJS Cloud for connection setup and Google's STUN service for network discovery. No TURN relay or file storage is configured.
 
 dependencies.lock.json records exact package versions, upstream downloads and SHA-512 integrity values used in the development build. Ampoteket branding and equipment photographs are included as application assets; third-party software licences do not grant rights to those assets.

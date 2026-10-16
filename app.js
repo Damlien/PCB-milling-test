@@ -109,7 +109,7 @@ function updateValidation() {
   $('next-reason').textContent=state.step===1&&problems.length?'Complete the highlighted settings to continue.':'';
   for (const button of document.querySelectorAll('[data-reset]')) button.disabled=groupKeys(button.dataset.reset).every(key=>state[key]===defaults[key]);
   if ($('save-settings')) $('save-settings').disabled=problems.length>0;
-  document.querySelectorAll('[data-action=download-job]').forEach(button=>button.disabled=!cam.results||cam.calculatedRevision!==cam.revision);
+  document.querySelectorAll('[data-action=download-job],[data-action=send-job]').forEach(button=>button.disabled=!cam.results||cam.calculatedRevision!==cam.revision);
 }
 function render(focusId='') {
   $('guidance-toggle').setAttribute('aria-checked',String(showGuidance)); $('guidance-status').textContent=showGuidance?'On':'Off';

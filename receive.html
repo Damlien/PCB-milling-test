@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark"><title>Ampoteket · Receive PCB job</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar"><a class="brand" href="index.html" aria-label="Open PCB milling"><img src="brand.svg" alt="Ampoteket" width="180" height="34"></a><div class="product-name">PCB milling <span>Receive a job</span></div></header>
+<main class="receiver-page">
+<section class="transfer-card" aria-labelledby="receive-title">
+<p class="eyebrow">ON THE VPanel COMPUTER</p><h1 id="receive-title">Receive a PCB job</h1>
+<p class="intro">Keep this page open on the computer you use to control the mill. On your laptop, calculate the job and choose <strong>Send to machine</strong>.</p>
+<div id="receive-code-panel" hidden><p>Enter this code on your laptop:</p><output id="receive-code" class="receiver-code" aria-label="Receiver code"></output><button id="copy-receive-code" class="text-button" type="button">Copy code</button></div>
+<p id="receive-status" class="transfer-status" role="status">Connecting…</p>
+<div id="receive-offer" class="transfer-offer" hidden><h2>Incoming PCB job</h2><p id="receive-job-name"></p><p id="receive-job-size" class="hint"></p><div class="transfer-actions"><button id="accept-job" class="button primary" type="button">Accept job</button><button id="decline-job" class="button" type="button">Decline</button></div></div>
+<div id="receive-progress-panel" hidden><progress id="receive-progress" max="100" value="0" aria-label="Job received"></progress><p id="receive-progress-text" class="hint"></p></div>
+<div id="receive-result" hidden><h2>Your job is ready</h2><p id="received-job-label"></p><button id="save-received-job" class="button primary" type="button">Save job ZIP</button><p>After saving, extract the ZIP. In VPanel, use the RML files inside it. The ZIP also contains the job’s settings record.</p></div>
+<div class="transfer-actions"><button id="receive-again" class="button" type="button" hidden>Create a new code</button><a class="text-button" href="index.html">Open PCB milling</a></div>
+<details class="help"><summary>How the transfer works</summary><div class="help-body"><p>Both computers need internet access and an up-to-date browser. PeerJS Cloud helps the browsers connect; the file is sent between them and is not stored on a server.</p><p>If a university network or the Windows VM blocks the connection, try a different network. The milling app’s normal ZIP download remains available. This page receives files; it does not start the mill.</p></div></details>
+</section>
+</main>
+<script src="vendor/peerjs-1.5.5.min.js"></script><script src="transfer.js"></script><script src="receiver-ui.js"></script>
+</body></html>

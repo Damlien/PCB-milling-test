@@ -32,6 +32,18 @@ This is a software check; it does not run the machine.
 
 To check more cases, open **Run application tests** above and press its run button. The navigation revision passed **43 tests**. Read any failed case before changing code: the failure may describe an unsupported input rather than a broken host. The engine comparison is useful after changes to conversion, settings mapping or engine files. Neither test page establishes that a physical PCB will mill correctly.
 
+### Send a job to the VPanel computer
+
+The application can send its job ZIP to another browser. This lets a student prepare the PCB on a laptop and receive the machine files inside the Windows VM used for VPanel.
+
+1. Inside Windows, open the [receiving page](https://damlien.github.io/PCB-milling-test/receive.html). Bookmark it for later use. It displays an eight-character code.
+2. On the laptop, calculate the job, choose **Send to machine** and enter that code.
+3. On the receiving page, check the board name and choose **Accept job**. After delivery, choose **Save job ZIP** and extract it before selecting the RML files in VPanel.
+
+Keep both pages open until the transfer finishes. The receiving page checks that the complete file matches what was sent. Receiving a file does not operate the mill.
+
+PeerJS Cloud is a public service that helps the browsers find each other. The job itself travels between the computers and is not stored by that service. No lab-run server or account is needed. Some university networks or VM network settings can prevent the browsers from connecting directly; this version does not provide a relay service to bypass that restriction. File transfer is optional, so a service outage does not stop local PCB preparation or normal ZIP downloads.
+
 ## 3. Make a small documentation change
 
 For example, correct a sentence in this handover guide. A **commit** is a saved change in the repository's history.
@@ -56,6 +68,7 @@ Official references: [editing files](https://docs.github.com/en/repositories/wor
 | A new sample board | `samples/`; each sample has `files.json`, listing its input filenames | Import the actual exports, inspect orientation and calculate all intended operations. |
 | Gerber/drill rejection or file identification | `import-validation.js`, `integration.js` | Run application tests and add a case for the input being changed. |
 | Machine-file output or calculation behaviour | `cam.js`, `engines/mods-host.js` and bundled engines | Follow the engine boundary below; output comparisons are required. |
+| File transfer and receiving-page wording | `transfer.js` handles delivery; `sender-ui.js` and `receiver-ui.js` handle its controls; `receive.html` contains the receiving-page text | Send the lab example to a second browser, accept it and check the downloaded ZIP. |
 
 The current lab values are spread across several code files. There is not yet one simple “lab settings” file. Do not assume that changing a displayed tool name also changes the dimensions used for calculation.
 
@@ -82,6 +95,8 @@ Keep that terminal open and visit `http://127.0.0.1:4173/`. Use another port, su
 | Download is missing after an edit | Recalculate. Changing settings or board files invalidates earlier output. |
 | Downloaded PNG has no coloured paths | Expected: PNG downloads contain the machining image. Coloured paths are a separate on-screen overlay. |
 | Refresh lost a job | Expected: jobs are held in browser memory. Re-import the board exports. Saved settings JSON cannot currently be reopened by the application. |
+| Direct transfer cannot connect | Keep the receiving page open and use its current code. Confirm internet access on both computers. If the code is valid but connection still fails, the university or VM network may block direct browser connections. |
+| Transfer was declined, cancelled or interrupted | No complete ZIP is available from that attempt. Create a new code on the receiving page and send again. |
 
 For an unresolved problem, record the site address, what was clicked, the exact error, whether the bundled example works, and the affected repository commit. Include the input files and settings when they can be shared. This gives a future student or optional AI helper a reproducible problem without needing the original conversation.
 
